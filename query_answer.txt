@@ -1,0 +1,37 @@
+Mission 1: B  
+Mission 2: B D C D C A C B  
+Mission 3: C B A C D A B D  
+Mission 4: A C D B A D A C  
+Mission 5: A C B D A C D B  
+Mission 6: A C A B D A B C  
+Mission 7: D B A C A D B C  
+Mission 8: C A C B D A C B  
+Mission 9: C A B B C C B D  
+Mission 10: B B D C A C B A  
+Mission 11: D B A D B C B  
+Mission 12: A B A B A C B D  
+Mission 13: B B C B C A D C C  
+Mission 14: D A D D B D D A  
+Mission 15: B C D B C D B A B  
+Mission 16: B C D A C B B C  
+Mission 17: C A B D B C B D  
+Mission 18: A B C C B B C B B  
+Mission 19: A B D A A D  
+Mission 20: B A C A B B B  
+Mission 21: A C C C C C C 
+Mission 22: B C C B B  
+Mission 23: D C A D B D  
+Mission 24: B  
+Mission 25: C C A  
+Mission 26: A B D C  
+Mission 27: A B C C D  
+Mission 28: B C A D  
+Mission 29: B D B A  
+Mission 30: C A D B  
+Mission 31: D A C  
+Mission 32: D A C B  
+Mission 33: C A D D  
+Mission 34: A A D D  
+Mission 35: B C D A B  
+Mission 36: B B A D  
+Mission 37: A D B

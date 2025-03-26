@@ -1,0 +1,8 @@
+{
+    "lootbox": true,
+    "mission": true,
+    "thread": 1,
+    "proxy": false,
+    "delay_account_switch": 10,
+    "delay_loop": 3000
+}
