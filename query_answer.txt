@@ -35,3 +35,4 @@ Mission 34: A A D D
 Mission 35: B C D A B  
 Mission 36: B B A D  
 Mission 37: A D B
+Mission 38: A B D D

@@ -1,12 +1,17 @@
 from datetime import datetime
-import requests
-from urllib.parse import parse_qs, urlsplit
-import json
 import time
-from colorama import init, Fore, Style
+from colorama import Fore
+import requests
 import random
 from fake_useragent import UserAgent
 import asyncio
+import json
+import gzip
+import brotli
+import zlib
+import chardet
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class spacerace:
@@ -33,11 +38,13 @@ class spacerace:
         self.query_list = self.load_query("query.txt")
         self.token = None
         self.config = self.load_config()
+        self.session = self.sessions()
 
     def banner(self) -> None:
         """Displays the banner for the bot."""
         self.log("🎉 Spacerace Free Bot", Fore.CYAN)
         self.log("🚀 Created by LIVEXORDS", Fore.CYAN)
+        self.log("👥 Contributors: @raecheliana", Fore.CYAN)
         self.log("📢 Channel: t.me/livexordsscript\n", Fore.CYAN)
 
     def log(self, message, color=Fore.RESET):
@@ -50,6 +57,68 @@ class spacerace:
             + safe_message
             + Fore.RESET
         )
+        
+    def sessions(self):
+        session = requests.Session()
+        retries = Retry(total=3,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504, 520])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        return session
+
+    def decode_response(self, response):
+        """
+        Mendekode response dari server secara umum.
+
+        Parameter:
+            response: objek requests.Response
+
+        Mengembalikan:
+            - Jika Content-Type mengandung 'application/json', maka mengembalikan objek Python (dict atau list) hasil parsing JSON.
+            - Jika bukan JSON, maka mengembalikan string hasil decode.
+        """
+        # Ambil header
+        content_encoding = response.headers.get('Content-Encoding', '').lower()
+        content_type = response.headers.get('Content-Type', '').lower()
+
+        # Tentukan charset dari Content-Type, default ke utf-8
+        charset = 'utf-8'
+        if 'charset=' in content_type:
+            charset = content_type.split('charset=')[-1].split(';')[0].strip()
+
+        # Ambil data mentah
+        data = response.content
+
+        # Dekompresi jika perlu
+        try:
+            if content_encoding == 'gzip':
+                data = gzip.decompress(data)
+            elif content_encoding in ['br', 'brotli']:
+                data = brotli.decompress(data)
+            elif content_encoding in ['deflate', 'zlib']:
+                data = zlib.decompress(data)
+        except Exception:
+            # Jika dekompresi gagal, lanjutkan dengan data asli
+            pass
+
+        # Coba decode menggunakan charset yang didapat
+        try:
+            text = data.decode(charset)
+        except Exception:
+            # Fallback: deteksi encoding dengan chardet
+            detection = chardet.detect(data)
+            detected_encoding = detection.get("encoding", "utf-8")
+            text = data.decode(detected_encoding, errors='replace')
+
+        # Jika konten berupa JSON, kembalikan hasil parsing JSON
+        if 'application/json' in content_type:
+            try:
+                return json.loads(text)
+            except Exception:
+                # Jika parsing JSON gagal, kembalikan string hasil decode
+                return text
+        else:
+            return text
 
     def load_config(self) -> dict:
         """
@@ -147,7 +216,7 @@ class spacerace:
 
         # Proses respon login
         if response.status_code == 201:
-            data = response.json()
+            data = self.decode_response(response)
             if "accessToken" not in data:
                 self.log("❌ Login failed: accessToken not found in response", Fore.RED)
                 return
@@ -164,7 +233,7 @@ class spacerace:
         try:
             user_response = requests.get(user_url, headers=headers)
             user_response.raise_for_status()
-            user_data = user_response.json()
+            user_data = self.decode_response(user_response)
             self.log("✅ User information retrieved successfully", Fore.GREEN)
         except requests.exceptions.RequestException as e:
             self.log(f"❌ Failed to fetch user information: {e}", Fore.RED)
@@ -196,7 +265,7 @@ class spacerace:
         try:
             active_response = requests.get(f"{self.BASE_URL}missions/active", headers=headers)
             active_response.raise_for_status()
-            active_missions = active_response.json()
+            active_missions = self.decode_response(active_response)
             self.log("✅ Active missions retrieved successfully", Fore.GREEN)
         except Exception as e:
             self.log(f"❌ Failed to fetch active missions: {e}", Fore.RED)
@@ -207,7 +276,7 @@ class spacerace:
         try:
             completed_response = requests.get(f"{self.BASE_URL}users/missions", headers=headers)
             completed_response.raise_for_status()
-            completed_missions = completed_response.json()
+            completed_missions = self.decode_response(completed_response)
             self.log("✅ Completed missions retrieved successfully", Fore.GREEN)
         except Exception as e:
             self.log(f"❌ Failed to fetch completed missions: {e}", Fore.RED)
@@ -268,7 +337,7 @@ class spacerace:
             try:
                 questions_response = requests.get(f"{self.BASE_URL}mission/{mission_id}/questions/public", headers=headers)
                 questions_response.raise_for_status()
-                mission_questions = questions_response.json()
+                mission_questions = self.decode_response(questions_response)
                 self.log(f"✅ Questions for Mission {idx+1} retrieved successfully", Fore.GREEN)
             except Exception as e:
                 self.log(f"❌ Failed to fetch questions for Mission {idx+1}: {e}", Fore.RED)
@@ -331,7 +400,7 @@ class spacerace:
         try:
             loot_response = requests.get(f"{self.BASE_URL}loot-boxes/user?from=0&size=25&status=notOpened", headers=headers)
             loot_response.raise_for_status()
-            loot_data = loot_response.json()
+            loot_data = self.decode_response(loot_response)
             loot_boxes = loot_data.get("data", [])
             self.log(f"✅ Found {len(loot_boxes)} loot box(es)", Fore.GREEN)
         except Exception as e:
@@ -351,7 +420,7 @@ class spacerace:
             try:
                 detail_response = requests.get(f"{self.BASE_URL}loot-boxes/user/{lootbox_id}", headers=headers)
                 detail_response.raise_for_status()
-                detail_data = detail_response.json()
+                detail_data = self.decode_response(detail_response)
                 self.log(f"📄 Loot Box Detail: Status - {detail_data.get('status', 'N/A')}", Fore.CYAN)
             except Exception as e:
                 self.log(f"❌ Failed to fetch detail for Loot Box {lootbox_id}: {e}", Fore.RED)
@@ -362,7 +431,7 @@ class spacerace:
             try:
                 open_response = requests.put(f"{self.BASE_URL}loot-boxes/user/{lootbox_id}/open", headers=headers)
                 open_response.raise_for_status()
-                open_data = open_response.json()
+                open_data = self.decode_response(open_response)
                 self.log(f"✅ Loot Box {lootbox_id} opened successfully!", Fore.GREEN)
                 self.log(f"💰 Points Reward: {open_data.get('pointsReward', 'N/A')}", Fore.CYAN)
                 # Jika terdapat raffle tickets, tampilkan juga

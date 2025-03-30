@@ -10,6 +10,12 @@
 
 Spacerace Bot is your automation buddy designed to simplify daily operations. This bot takes over repetitive tasks so you can focus on what really matters. With Spacerace Bot, you get:
 
+- **🕹️ Auto Solve Mission:**  
+  Automatically solve missions by reading your query file and submitting answers for you.
+
+- **🎁 Auto Open Lootbox:**  
+  Automatically check for and open your available lootboxes to claim rewards.
+
 - **👥 Multi Account Support:**  
   Manage multiple accounts with ease.
 
@@ -19,11 +25,6 @@ Spacerace Bot is your automation buddy designed to simplify daily operations. Th
 - **⏱️ Configurable Delays:**  
   Adjust delays between account switches and loop cycles to suit your operational tempo.
 
-- **🕹️ Auto Solve Mission:**  
-  Automatically solve missions by reading your query file and submitting answers for you.
-
-- **🎁 Auto Open Lootbox:**  
-  Automatically check for and open your available lootboxes to claim rewards.
 
 - **🔌 Support Proxy:**  
   Use HTTP/HTTPS proxies to enhance your multi-account setups.
@@ -34,16 +35,11 @@ Spacerace Bot is built with flexibility and efficiency in mind – it's here to 
 
 ## 🌟 Version Updates
 
-**Current Version: v1.0.0**
+**Current Version: v1.0.1**
 
-### v1.0.0 - Initial Release
+### v1.0.1 - Update Release
 
-- 👥 **Multi Account Support:** Manage multiple accounts with ease.
-- 🧵 **Thread System:** Execute tasks concurrently using configurable threads.
-- ⏱️ **Configurable Delays:** Adjust delays between account switches and loop cycles.
-- 🕹️ **Auto Solve Mission:** Automatically process and solve missions using your query file.
-- 🎁 **Auto Open Lootbox:** Efficiently check for and open lootboxes to claim rewards.
-- 🔌 **Support Proxy:** Use proxies to manage your connections effectively.
+- **Added Answer for Mission 38:** Introduced a new answer functionality specifically for mission 38.
 
 ---
 
@@ -144,5 +140,11 @@ This project is developed by **Livexords**. If you have ideas, questions, or wan
     <img src="https://img.shields.io/static/v1?message=Livexords&logo=telegram&label=&color=2CA5E0&logoColor=white&style=for-the-badge" height="25" alt="Telegram Logo" />
   </a>
 </div>
+
+---
+
+## 🙌 Contributors
+
+- @raecheliana
 
 ---
