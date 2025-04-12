@@ -31,14 +31,21 @@ class spacerace:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
         "sec-ch-ua": '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
         "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"' 
+        "sec-ch-ua-platform": '"Windows"',
     }
 
     def __init__(self):
+        self.config = self.load_config()
         self.query_list = self.load_query("query.txt")
         self.token = None
-        self.config = self.load_config()
         self.session = self.sessions()
+        self._original_requests = {
+            "get": requests.get,
+            "post": requests.post,
+            "put": requests.put,
+            "delete": requests.delete,
+        }
+        self.proxy_session = None
 
     def banner(self) -> None:
         """Displays the banner for the bot."""
@@ -57,13 +64,13 @@ class spacerace:
             + safe_message
             + Fore.RESET
         )
-        
+
     def sessions(self):
         session = requests.Session()
-        retries = Retry(total=3,
-                        backoff_factor=1,
-                        status_forcelist=[500, 502, 503, 504, 520])
-        session.mount('https://', HTTPAdapter(max_retries=retries))
+        retries = Retry(
+            total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504, 520]
+        )
+        session.mount("https://", HTTPAdapter(max_retries=retries))
         return session
 
     def decode_response(self, response):
@@ -78,24 +85,24 @@ class spacerace:
             - Jika bukan JSON, maka mengembalikan string hasil decode.
         """
         # Ambil header
-        content_encoding = response.headers.get('Content-Encoding', '').lower()
-        content_type = response.headers.get('Content-Type', '').lower()
+        content_encoding = response.headers.get("Content-Encoding", "").lower()
+        content_type = response.headers.get("Content-Type", "").lower()
 
         # Tentukan charset dari Content-Type, default ke utf-8
-        charset = 'utf-8'
-        if 'charset=' in content_type:
-            charset = content_type.split('charset=')[-1].split(';')[0].strip()
+        charset = "utf-8"
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].split(";")[0].strip()
 
         # Ambil data mentah
         data = response.content
 
         # Dekompresi jika perlu
         try:
-            if content_encoding == 'gzip':
+            if content_encoding == "gzip":
                 data = gzip.decompress(data)
-            elif content_encoding in ['br', 'brotli']:
+            elif content_encoding in ["br", "brotli"]:
                 data = brotli.decompress(data)
-            elif content_encoding in ['deflate', 'zlib']:
+            elif content_encoding in ["deflate", "zlib"]:
                 data = zlib.decompress(data)
         except Exception:
             # Jika dekompresi gagal, lanjutkan dengan data asli
@@ -108,10 +115,10 @@ class spacerace:
             # Fallback: deteksi encoding dengan chardet
             detection = chardet.detect(data)
             detected_encoding = detection.get("encoding", "utf-8")
-            text = data.decode(detected_encoding, errors='replace')
+            text = data.decode(detected_encoding, errors="replace")
 
         # Jika konten berupa JSON, kembalikan hasil parsing JSON
-        if 'application/json' in content_type:
+        if "application/json" in content_type:
             try:
                 return json.loads(text)
             except Exception:
@@ -185,10 +192,18 @@ class spacerace:
         try:
             email, password = token.split("|", 1)
             # Hanya tampilkan 4 karakter terdepan untuk email dan password
-            self.log(f"📋 Using email: {email[:4]}{'*' * (len(email) - 4) if len(email) > 4 else ''}", Fore.CYAN)
-            self.log(f"🔑 Using password: {password[:4]}{'*' * (len(password) - 4) if len(password) > 4 else ''}", Fore.CYAN)
+            self.log(
+                f"📋 Using email: {email[:4]}{'*' * (len(email) - 4) if len(email) > 4 else ''}",
+                Fore.CYAN,
+            )
+            self.log(
+                f"🔑 Using password: {password[:4]}{'*' * (len(password) - 4) if len(password) > 4 else ''}",
+                Fore.CYAN,
+            )
         except Exception as e:
-            self.log("❌ Token format invalid. Expected format 'email|password'", Fore.RED)
+            self.log(
+                "❌ Token format invalid. Expected format 'email|password'", Fore.RED
+            )
             return
 
         # Buat payload untuk login
@@ -223,7 +238,10 @@ class spacerace:
             self.token = data["accessToken"]
             self.log("✅ Login successful! Token retrieved", Fore.GREEN)
         else:
-            self.log(f"❌ Login request failed with status code {response.status_code}", Fore.RED)
+            self.log(
+                f"❌ Login request failed with status code {response.status_code}",
+                Fore.RED,
+            )
             return
 
         # Request informasi user dengan endpoint auth/user
@@ -243,7 +261,9 @@ class spacerace:
                 pass
             return
         except Exception as e:
-            self.log(f"❌ Unexpected error while fetching user information: {e}", Fore.RED)
+            self.log(
+                f"❌ Unexpected error while fetching user information: {e}", Fore.RED
+            )
             try:
                 self.log(f"📄 Response content: {user_response.text}", Fore.RED)
             except Exception:
@@ -251,11 +271,19 @@ class spacerace:
             return
 
         # Menampilkan informasi user penting secara user friendly
-        important_keys = ["id", "email", "personalReferralCode", "isEmailConfirmed", "username"]
+        important_keys = [
+            "id",
+            "email",
+            "personalReferralCode",
+            "isEmailConfirmed",
+            "username",
+        ]
         self.log("👤 Important User Data:", Fore.CYAN)
         for key in important_keys:
-            self.log(f"    • {key.capitalize()}: {user_data.get(key, 'N/A')}", Fore.CYAN)
-            
+            self.log(
+                f"    • {key.capitalize()}: {user_data.get(key, 'N/A')}", Fore.CYAN
+            )
+
     def mission(self) -> None:
         # Header dengan authorization yang benar
         headers = {**self.HEADERS, "authorization": f"Bearer {self.token}"}
@@ -263,7 +291,9 @@ class spacerace:
         # Ambil daftar misi aktif
         self.log("🚀 Fetching active missions...", Fore.CYAN)
         try:
-            active_response = requests.get(f"{self.BASE_URL}missions/active", headers=headers)
+            active_response = requests.get(
+                f"{self.BASE_URL}missions/active", headers=headers
+            )
             active_response.raise_for_status()
             active_missions = self.decode_response(active_response)
             self.log("✅ Active missions retrieved successfully", Fore.GREEN)
@@ -274,7 +304,9 @@ class spacerace:
         # Ambil daftar misi yang sudah diselesaikan
         self.log("🚀 Fetching completed missions...", Fore.CYAN)
         try:
-            completed_response = requests.get(f"{self.BASE_URL}users/missions", headers=headers)
+            completed_response = requests.get(
+                f"{self.BASE_URL}users/missions", headers=headers
+            )
             completed_response.raise_for_status()
             completed_missions = self.decode_response(completed_response)
             self.log("✅ Completed missions retrieved successfully", Fore.GREEN)
@@ -282,74 +314,98 @@ class spacerace:
             self.log(f"❌ Failed to fetch completed missions: {e}", Fore.RED)
             return
 
-        # Baca file jawaban query_answer.txt sekali saja
-        self.log("📄 Reading answer file...", Fore.CYAN)
+        # Ambil isi query_answer.txt dari URL
+        self.log("🌐 Fetching answer file from remote URL...", Fore.CYAN)
         try:
-            with open("query_answer.txt", "r") as f:
-                answer_lines = f.readlines()
+            answer_url = "https://raw.githubusercontent.com/livexords-nw/spacerace-bot/refs/heads/main/query_answer.txt"
+            response = requests.get(answer_url)
+            response.raise_for_status()
+            answer_lines = response.text.strip().splitlines()
+            self.log("✅ Answer file retrieved successfully", Fore.GREEN)
         except Exception as e:
-            self.log(f"❌ Failed to read query_answer.txt: {e}", Fore.RED)
+            self.log(f"❌ Failed to fetch query_answer.txt from URL: {e}", Fore.RED)
             return
 
-        # Ambil id misi yang sudah selesai untuk pengecekan
-        completed_ids = [m.get("mission", {}).get("id") for m in completed_missions if m.get("mission")]
+        completed_ids = [
+            m.get("mission", {}).get("id")
+            for m in completed_missions
+            if m.get("mission")
+        ]
 
-        # Loop melalui semua misi aktif berdasarkan index
         for idx, mission in enumerate(active_missions):
             mission_id = mission.get("id")
-            self.log(f"📋 Processing Mission {idx+1}: {mission.get('title', 'N/A')}", Fore.CYAN)
+            self.log(
+                f"📋 Processing Mission {idx+1}: {mission.get('title', 'N/A')}",
+                Fore.CYAN,
+            )
 
-            # Jika misi sudah selesai, skip
             if mission_id in completed_ids:
                 self.log(f"ℹ️ Mission {idx+1} already completed. Skipping.", Fore.YELLOW)
                 continue
 
-            # Cari jawaban untuk Mission {idx+1} di file
             prefix = f"Mission {idx+1}:"
-            mission_line = None
-            for line in answer_lines:
-                if line.strip().startswith(prefix):
-                    mission_line = line.strip()
-                    break
+            mission_line = next(
+                (
+                    line.strip()
+                    for line in answer_lines
+                    if line.strip().startswith(prefix)
+                ),
+                None,
+            )
+
             if not mission_line:
                 self.log(f"❌ No answer found for Mission {idx+1}. Skipping.", Fore.RED)
                 continue
 
-            # Ekstrak jawaban (contoh: "C B A ..." menjadi list ['C', 'B', 'A', ...])
             try:
                 answers_part = mission_line.split(":", 1)[1].strip()
                 answer_letters = answers_part.split()
-                self.log(f"📋 Found answers for Mission {idx+1}: {answer_letters}", Fore.CYAN)
+                self.log(
+                    f"📋 Found answers for Mission {idx+1}: {answer_letters}", Fore.CYAN
+                )
             except Exception as e:
-                self.log(f"❌ Failed to parse answers for Mission {idx+1}: {e}", Fore.RED)
+                self.log(
+                    f"❌ Failed to parse answers for Mission {idx+1}: {e}", Fore.RED
+                )
                 continue
 
-            # Mapping huruf ke posisi: A->1, B->2, C->3, D->4
             letter_to_position = {"A": 1, "B": 2, "C": 3, "D": 4}
             try:
-                answer_positions = [letter_to_position[letter.upper()] for letter in answer_letters]
+                answer_positions = [
+                    letter_to_position[letter.upper()] for letter in answer_letters
+                ]
             except Exception as e:
                 self.log(f"❌ Invalid answer letter in Mission {idx+1}: {e}", Fore.RED)
                 continue
 
-            # Ambil pertanyaan publik untuk misi yang terpilih
             self.log(f"🚀 Fetching questions for Mission {idx+1}...", Fore.CYAN)
             try:
-                questions_response = requests.get(f"{self.BASE_URL}mission/{mission_id}/questions/public", headers=headers)
+                questions_response = requests.get(
+                    f"{self.BASE_URL}mission/{mission_id}/questions/public",
+                    headers=headers,
+                )
                 questions_response.raise_for_status()
                 mission_questions = self.decode_response(questions_response)
-                self.log(f"✅ Questions for Mission {idx+1} retrieved successfully", Fore.GREEN)
+                self.log(
+                    f"✅ Questions for Mission {idx+1} retrieved successfully",
+                    Fore.GREEN,
+                )
             except Exception as e:
-                self.log(f"❌ Failed to fetch questions for Mission {idx+1}: {e}", Fore.RED)
+                self.log(
+                    f"❌ Failed to fetch questions for Mission {idx+1}: {e}", Fore.RED
+                )
                 continue
 
-            # Urutkan pertanyaan berdasarkan properti 'position'
-            mission_questions_sorted = sorted(mission_questions, key=lambda q: q.get("position", 0))
+            mission_questions_sorted = sorted(
+                mission_questions, key=lambda q: q.get("position", 0)
+            )
             if len(mission_questions_sorted) != len(answer_positions):
-                self.log(f"❌ Number of answers does not match number of questions for Mission {idx+1}. Skipping.", Fore.RED)
+                self.log(
+                    f"❌ Number of answers does not match number of questions for Mission {idx+1}. Skipping.",
+                    Fore.RED,
+                )
                 continue
 
-            # Mapping jawaban ke option ID berdasarkan posisi jawaban
             questions_payload = []
             skip_mission = False
             for q_idx, question in enumerate(mission_questions_sorted):
@@ -361,30 +417,40 @@ class spacerace:
                         picked_answer_id = ans.get("id")
                         break
                 if picked_answer_id is None:
-                    self.log(f"❌ Could not find answer option at position {desired_position} for question {question_id} in Mission {idx+1}. Skipping mission.", Fore.RED)
+                    self.log(
+                        f"❌ Could not find answer option at position {desired_position} for question {question_id} in Mission {idx+1}. Skipping mission.",
+                        Fore.RED,
+                    )
                     skip_mission = True
                     break
-                questions_payload.append({
-                    "questionId": question_id,
-                    "pickedAnswersIds": [picked_answer_id]
-                })
-                self.log(f"📋 For Question {question.get('position', q_idx+1)}: selected answer option at position {desired_position} (ID: {picked_answer_id})", Fore.CYAN)
+                questions_payload.append(
+                    {"questionId": question_id, "pickedAnswersIds": [picked_answer_id]}
+                )
+                self.log(
+                    f"📋 For Question {question.get('position', q_idx+1)}: selected answer option at position {desired_position} (ID: {picked_answer_id})",
+                    Fore.CYAN,
+                )
 
             if skip_mission:
                 continue
 
-            # Buat payload akhir untuk misi
-            payload = {
-                "missionId": mission_id,
-                "questions": questions_payload
-            }
+            payload = {"missionId": mission_id, "questions": questions_payload}
             self.log(f"🚀 Sending answers for Mission {idx+1}...", Fore.CYAN)
             try:
-                response = requests.put(f"{self.BASE_URL}users/missions/provide-answers", headers=headers, json=payload)
+                response = requests.put(
+                    f"{self.BASE_URL}users/missions/provide-answers",
+                    headers=headers,
+                    json=payload,
+                )
                 response.raise_for_status()
-                self.log(f"✅ Answers for Mission {idx+1} submitted successfully!", Fore.GREEN)
+                self.log(
+                    f"✅ Answers for Mission {idx+1} submitted successfully!",
+                    Fore.GREEN,
+                )
             except Exception as e:
-                self.log(f"❌ Failed to submit answers for Mission {idx+1}: {e}", Fore.RED)
+                self.log(
+                    f"❌ Failed to submit answers for Mission {idx+1}: {e}", Fore.RED
+                )
                 try:
                     self.log(f"📄 Response content: {response.text}", Fore.RED)
                 except Exception:
@@ -398,7 +464,10 @@ class spacerace:
         # Ambil daftar loot box yang belum dibuka
         self.log("🚀 Fetching loot boxes...", Fore.CYAN)
         try:
-            loot_response = requests.get(f"{self.BASE_URL}loot-boxes/user?from=0&size=25&status=notOpened", headers=headers)
+            loot_response = requests.get(
+                f"{self.BASE_URL}loot-boxes/user?from=0&size=25&status=notOpened",
+                headers=headers,
+            )
             loot_response.raise_for_status()
             loot_data = self.decode_response(loot_response)
             loot_boxes = loot_data.get("data", [])
@@ -418,26 +487,42 @@ class spacerace:
 
             # Ambil detail loot box
             try:
-                detail_response = requests.get(f"{self.BASE_URL}loot-boxes/user/{lootbox_id}", headers=headers)
+                detail_response = requests.get(
+                    f"{self.BASE_URL}loot-boxes/user/{lootbox_id}", headers=headers
+                )
                 detail_response.raise_for_status()
                 detail_data = self.decode_response(detail_response)
-                self.log(f"📄 Loot Box Detail: Status - {detail_data.get('status', 'N/A')}", Fore.CYAN)
+                self.log(
+                    f"📄 Loot Box Detail: Status - {detail_data.get('status', 'N/A')}",
+                    Fore.CYAN,
+                )
             except Exception as e:
-                self.log(f"❌ Failed to fetch detail for Loot Box {lootbox_id}: {e}", Fore.RED)
+                self.log(
+                    f"❌ Failed to fetch detail for Loot Box {lootbox_id}: {e}",
+                    Fore.RED,
+                )
                 continue
 
             # Buka loot box dengan PUT request (tanpa payload)
             self.log(f"🔓 Opening Loot Box {lootbox_id}...", Fore.CYAN)
             try:
-                open_response = requests.put(f"{self.BASE_URL}loot-boxes/user/{lootbox_id}/open", headers=headers)
+                open_response = requests.put(
+                    f"{self.BASE_URL}loot-boxes/user/{lootbox_id}/open", headers=headers
+                )
                 open_response.raise_for_status()
                 open_data = self.decode_response(open_response)
                 self.log(f"✅ Loot Box {lootbox_id} opened successfully!", Fore.GREEN)
-                self.log(f"💰 Points Reward: {open_data.get('pointsReward', 'N/A')}", Fore.CYAN)
+                self.log(
+                    f"💰 Points Reward: {open_data.get('pointsReward', 'N/A')}",
+                    Fore.CYAN,
+                )
                 # Jika terdapat raffle tickets, tampilkan juga
                 raffles = open_data.get("rafflesTickets", [])
                 if raffles:
-                    self.log(f"🎟️ Raffle Tickets: {len(raffles)} ticket(s) received.", Fore.CYAN)
+                    self.log(
+                        f"🎟️ Raffle Tickets: {len(raffles)} ticket(s) received.",
+                        Fore.CYAN,
+                    )
             except Exception as e:
                 self.log(f"❌ Failed to open Loot Box {lootbox_id}: {e}", Fore.RED)
                 continue
